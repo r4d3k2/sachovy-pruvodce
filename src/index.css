@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* === Témata přes CSS custom properties ================================== */
+/* Přepínají se přes atribut data-theme na <html>. */
+
+:root,
+[data-theme="wooden-night"] {
+  --bg: #1c1814;
+  --surface: #2a2420;
+  --board-light: #b58863;
+  --board-dark: #6e4a2f;
+  --board-coord: #d8c0a0;
+  --piece-white-fill: #f0e6d2;
+  --piece-white-stroke: #3a2a1a;
+  --piece-black-fill: #1a1410;
+  --piece-black-stroke: #d9b88e;
+  --border: #4a3c2e;
+  --accent: #d99a4e;
+  --text-strong: #f0e6d2;
+  --text-soft: #c8b8a0;
+  --text-muted: #8a7a64;
+  --good: #6fae4a;
+  --bad: #d05a4a;
+}
+
+[data-theme="wooden-day"] {
+  --bg: #f4ecdc;
+  --surface: #ece0c8;
+  --board-light: #e8d0a8;
+  --board-dark: #b58863;
+  --board-coord: #6b4a2e;
+  --piece-white-fill: #fdf8ee;
+  --piece-white-stroke: #5a4030;
+  --piece-black-fill: #2a1f16;
+  --piece-black-stroke: #c9a06e;
+  --border: #c9b48e;
+  --accent: #b07838;
+  --text-strong: #3a2818;
+  --text-soft: #6a4a30;
+  --text-muted: #9a8268;
+  --good: #5a8a3a;
+  --bad: #c14a3a;
+}
+
+[data-theme="modern-light"] {
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --board-light: #eef2f6;
+  --board-dark: #8ba6c1;
+  --board-coord: #4a5a6a;
+  --piece-white-fill: #ffffff;
+  --piece-white-stroke: #3a4a5a;
+  --piece-black-fill: #2a3440;
+  --piece-black-stroke: #aac0d4;
+  --border: #d2dae2;
+  --accent: #4a80c0;
+  --text-strong: #1a2530;
+  --text-soft: #4a5a6a;
+  --text-muted: #8a9aaa;
+  --good: #3a9a5a;
+  --bad: #d04a4a;
+}
+
+[data-theme="midnight-blue"] {
+  --bg: #0f1722;
+  --surface: #1a2433;
+  --board-light: #5a7491;
+  --board-dark: #2e4256;
+  --board-coord: #a0b4c8;
+  --piece-white-fill: #e6eef6;
+  --piece-white-stroke: #2a3a4a;
+  --piece-black-fill: #0a1018;
+  --piece-black-stroke: #6a8aaa;
+  --border: #33455a;
+  --accent: #5a9ad0;
+  --text-strong: #e6eef6;
+  --text-soft: #b0c0d0;
+  --text-muted: #6a7a8a;
+  --good: #5aae6a;
+  --bad: #d06a5a;
+}
+
+/* === Základ ============================================================= */
+
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-strong);
+  font-family: "Crimson Text", Georgia, serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Plynulý přechod při změně tématu */
+body,
+.theme-transition {
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
+}
+
+/* === Pomocné animace ==================================================== */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.25s ease both;
+}
+
+@keyframes errorFlash {
+  0% {
+    fill: var(--bad);
+    opacity: 0.75;
+  }
+  100% {
+    fill: var(--bad);
+    opacity: 0;
+  }
+}
