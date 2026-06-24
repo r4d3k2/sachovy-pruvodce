@@ -31,9 +31,9 @@ export function ThemeSwitcher({ theme, onSelect }: ThemeSwitcherProps) {
       onClick={next}
       aria-label="Změnit téma"
       title="Změnit téma"
-      className="w-8 h-8 rounded-full flex items-center justify-center bg-[var(--surface)] border-[0.5px] border-[var(--border)] text-[var(--accent)] transition-all hover:brightness-110 hover:scale-105"
+      className="w-11 h-11 rounded-full flex items-center justify-center bg-[var(--surface)] border-[0.5px] border-[var(--border)] text-[var(--accent)] transition-all duration-[120ms] hover:brightness-110 hover:border-[var(--accent)] active:scale-[0.94]"
     >
-      <Icon name={THEME_ICON[theme]} size={17} />
+      <Icon name={THEME_ICON[theme]} size={18} />
     </button>
   );
 }

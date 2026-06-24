@@ -56,10 +56,10 @@ export function PieceSilhouette({
     >
       <text
         x={50}
-        y={52}
+        y={50}
+        dy="0.32em"
         fontSize={82}
         textAnchor="middle"
-        dominantBaseline="central"
         fill={pieceFillVar(side)}
         stroke={pieceStrokeVar(side)}
         strokeWidth={2.4}

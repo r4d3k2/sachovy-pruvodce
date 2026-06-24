@@ -16,8 +16,10 @@ import {
   squareToCoords,
 } from "../lib/chess-engine";
 import { trackedPiecesUpTo } from "../lib/chess-tracking";
+import { recommend } from "../lib/recommend";
 import { OPENINGS } from "../data/openings";
 import { PIECES } from "../data/pieces";
+import { GAMES } from "../data/games";
 import {
   applyTheme,
   loadProgress,
@@ -41,12 +43,13 @@ import { Icon, type IconName } from "../components/chess/Icon";
 type Mode = "study" | "practice" | "pieces" | "games";
 type StudyTab = "overview" | "history" | "move";
 type PiecesTab = "cards" | "quiz";
+type GameTab = "topic" | "move" | "result";
 
 const MODES: Array<{ id: Mode; label: string; icon: IconName; ready: boolean }> = [
   { id: "study", label: "Studovat", icon: "book-open", ready: true },
   { id: "practice", label: "Procvičovat", icon: "target", ready: true },
   { id: "pieces", label: "Figury", icon: "crown", ready: true },
-  { id: "games", label: "Partie", icon: "history", ready: false },
+  { id: "games", label: "Partie", icon: "history", ready: true },
 ];
 
 const OPENING_ICON: Record<string, IconName> = {
@@ -79,9 +82,9 @@ function CtrlButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="w-[30px] h-[30px] rounded-full flex items-center justify-center bg-[var(--surface)] border-[0.5px] border-[var(--border)] text-[var(--text-soft)] transition-all hover:text-[var(--text-strong)] hover:border-[var(--accent)] disabled:opacity-35 disabled:cursor-not-allowed"
+      className="w-11 h-11 rounded-full flex items-center justify-center bg-[var(--surface)] border-[0.5px] border-[var(--border)] text-[var(--text-soft)] transition-all duration-[120ms] hover:text-[var(--text-strong)] hover:border-[var(--accent)] active:scale-[0.92] disabled:opacity-35 disabled:cursor-not-allowed disabled:active:scale-100"
     >
-      <Icon name={icon} size={16} />
+      <Icon name={icon} size={18} />
     </button>
   );
 }
@@ -105,19 +108,19 @@ function NavPill({
   children: React.ReactNode;
 }) {
   const sizes: Record<number, string> = {
-    1: "text-sm px-3.5 py-2 min-h-[40px]",
-    2: "text-[13px] px-3 py-1.5",
-    3: "text-[12px] px-2.5 py-1",
+    1: "text-sm px-3.5 min-h-[44px]",
+    2: "text-[13px] px-3 min-h-[44px]",
+    3: "text-[12px] px-2.5 min-h-[44px]",
   };
   const look = active
     ? "bg-[var(--surface)] border-[var(--accent)] text-[var(--text-strong)]"
-    : "bg-transparent border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-soft)]";
+    : "bg-transparent border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-soft)] hover:border-[var(--accent)]";
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`inline-flex items-center gap-1.5 rounded-full border font-body transition-all disabled:opacity-40 disabled:cursor-not-allowed ${sizes[size]} ${look}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border font-body transition-all duration-[120ms] active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100 ${sizes[size]} ${look}`}
     >
       {icon && <Icon name={icon} size={size === 1 ? 15 : 13} />}
       {children}
@@ -149,6 +152,14 @@ export default function Index() {
 
   // Figury
   const [piecesTab, setPiecesTab] = useState<PiecesTab>("cards");
+
+  // Partie
+  const [gameId, setGameId] = useState(GAMES[0].id);
+  const [gameIndex, setGameIndex] = useState(0);
+  const [gameTab, setGameTab] = useState<GameTab>("topic");
+
+  // Doporučení slabého místa (toast)
+  const [recommendNote, setRecommendNote] = useState<string | null>(null);
 
   const opening = OPENINGS.find((o) => o.id === openingId) ?? OPENINGS[0];
   const variation =
@@ -190,6 +201,20 @@ export default function Index() {
     if (m === "practice") resetPractice();
   };
 
+  // Doporuč slabé místo a přepni na něj (nebo zobraz hlášku „vše zvládnuto“).
+  const handleRecommend = () => {
+    const rec = recommend(progress, OPENINGS);
+    if (!rec) {
+      setRecommendNote("Všechno máš zvládnuté! 🎉");
+      return;
+    }
+    setRecommendNote(null);
+    setOpeningId(rec.openingId);
+    setVariationId(rec.variationId);
+    setStudyIndex(0);
+    resetPractice();
+  };
+
   // === Procvičovat — soupeřovy tahy a dokončení =============================
 
   useEffect(() => {
@@ -218,6 +243,13 @@ export default function Index() {
     return () => clearTimeout(t);
   }, [errorSquare]);
 
+  // Toast doporučení sám zmizí.
+  useEffect(() => {
+    if (!recommendNote) return;
+    const t = setTimeout(() => setRecommendNote(null), 2600);
+    return () => clearTimeout(t);
+  }, [recommendNote]);
+
   // === Odvozené hodnoty desky =============================================
 
   const activeIndex = mode === "practice" ? practiceIndex : studyIndex;
@@ -228,6 +260,35 @@ export default function Index() {
     activeIndex > 0 && moves[activeIndex - 1]
       ? { from: moves[activeIndex - 1].from, to: moves[activeIndex - 1].to }
       : null;
+
+  // === Partie — odvozené hodnoty =========================================
+
+  const game = GAMES.find((g) => g.id === gameId) ?? GAMES[0];
+  const gameMoves = game.moves;
+  const gameBoard = useMemo(
+    () => applyMovesUpTo(gameMoves, gameIndex),
+    [gameMoves, gameIndex],
+  );
+  const gamePieces = useMemo(
+    () => trackedPiecesUpTo(gameMoves, gameIndex),
+    [gameMoves, gameIndex],
+  );
+  const gameLastMove =
+    gameIndex > 0 && gameMoves[gameIndex - 1]
+      ? { from: gameMoves[gameIndex - 1].from, to: gameMoves[gameIndex - 1].to }
+      : null;
+  const currentGameMove = gameIndex > 0 ? gameMoves[gameIndex - 1] : null;
+  const gameFinished = gameIndex >= gameMoves.length;
+
+  const selectGame = (id: string) => {
+    setGameId(id);
+    setGameIndex(0);
+    setGameTab("topic");
+  };
+  const gStart = () => setGameIndex(0);
+  const gBack = () => setGameIndex((i) => Math.max(0, i - 1));
+  const gForward = () => setGameIndex((i) => Math.min(gameMoves.length, i + 1));
+  const gEnd = () => setGameIndex(gameMoves.length);
 
   // === Procvičovat — interakce ============================================
 
@@ -319,7 +380,7 @@ export default function Index() {
           <p className="font-body text-[11px] tracking-[3px] text-[var(--text-muted)] mb-1 uppercase">
             ♞ Š A C H Y
           </p>
-          <h1 className="font-display text-[21px] font-medium text-[var(--text-strong)]">
+          <h1 className="font-display text-[21px] font-medium text-[var(--text-strong)] px-12">
             Průvodce zahájením
           </h1>
         </header>
@@ -340,6 +401,9 @@ export default function Index() {
             </NavPill>
           ))}
         </nav>
+
+        {/* Obsah režimu — fade při přepnutí režimu */}
+        <div key={mode} className="fade-soft">
 
         {/* Selektory zahájení/varianty (Studovat + Procvičovat) */}
         {showBoard && (
@@ -384,6 +448,23 @@ export default function Index() {
         {/* === Deska (Studovat + Procvičovat) ============================== */}
         {showBoard && (
           <>
+            {/* Doporučení slabého místa (jen Procvičovat) */}
+            {mode === "practice" && (
+              <div className="flex flex-col items-center gap-2 mb-3">
+                <NavPill size={2} icon="target" active={false} onClick={handleRecommend}>
+                  Doporučit slabé místo
+                </NavPill>
+                {recommendNote && (
+                  <div
+                    role="status"
+                    className="fade-in font-body text-[13px] text-[var(--accent)] bg-[var(--surface)] border-[0.5px] border-[var(--accent)] rounded-full px-3.5 py-1.5"
+                  >
+                    {recommendNote}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="rounded-[10px] bg-[var(--surface)] border-[0.5px] border-[var(--border)] p-2.5 mb-3 shadow-[0_4px_18px_rgba(0,0,0,0.18)]">
               <ChessBoard
                 board={board}
@@ -400,7 +481,7 @@ export default function Index() {
             {mode === "study" ? (
               <>
                 {/* Ovládací tlačítka */}
-                <div className="flex items-center justify-center gap-1.5 mb-2">
+                <div className="flex flex-wrap items-center justify-center gap-1.5 mb-2">
                   <CtrlButton icon="skip-back" onClick={goStart} disabled={studyIndex === 0} label="Začátek" />
                   <CtrlButton icon="chevron-left" onClick={goBack} disabled={studyIndex === 0} label="Zpět" />
                   <span className="font-mono text-[11px] text-[var(--text-soft)] bg-[var(--surface)] border-[0.5px] border-[var(--border)] rounded-2xl px-3 py-1 min-w-[78px] text-center">
@@ -441,7 +522,7 @@ export default function Index() {
                       </button>
                     ))}
                   </div>
-                  <div key={`${studyTab}-${studyIndex}`} className="p-3 fade-in">
+                  <div key={`${studyTab}-${studyIndex}`} className="p-3 fade-soft">
                     {studyTab === "move" && currentStudyMove && (
                       <div className="mb-2">
                         <MoveToken notation={currentStudyMove.notation} />
@@ -530,14 +611,111 @@ export default function Index() {
           </div>
         )}
 
-        {/* === Partie (Fáze 4) =========================================== */}
+        {/* === Partie ==================================================== */}
         {mode === "games" && (
-          <div className="rounded-[8px] border-[0.5px] border-[var(--border)] bg-[var(--surface)] p-6 text-center">
-            <p className="font-body text-[var(--text-muted)] italic">
-              Instruktážní partie připravujeme.
+          <>
+            {/* Selektor partie */}
+            <div className="flex flex-wrap justify-center gap-1.5 mb-4">
+              {GAMES.map((g) => (
+                <NavPill
+                  key={g.id}
+                  size={2}
+                  icon="swords"
+                  active={g.id === gameId}
+                  onClick={() => selectGame(g.id)}
+                >
+                  {g.title}
+                </NavPill>
+              ))}
+            </div>
+
+            {/* Deska */}
+            <div className="rounded-[10px] bg-[var(--surface)] border-[0.5px] border-[var(--border)] p-2.5 mb-3 shadow-[0_4px_18px_rgba(0,0,0,0.18)]">
+              <ChessBoard
+                board={gameBoard}
+                pieces={gamePieces}
+                flipped={flipped}
+                lastMove={gameLastMove}
+              />
+            </div>
+
+            {/* Navigace */}
+            <div className="flex flex-wrap items-center justify-center gap-1.5 mb-2">
+              <CtrlButton icon="skip-back" onClick={gStart} disabled={gameIndex === 0} label="Začátek" />
+              <CtrlButton icon="chevron-left" onClick={gBack} disabled={gameIndex === 0} label="Zpět" />
+              <span className="font-mono text-[11px] text-[var(--text-soft)] bg-[var(--surface)] border-[0.5px] border-[var(--border)] rounded-2xl px-3 py-1 min-w-[78px] text-center">
+                Tah {gameIndex} / {gameMoves.length}
+              </span>
+              <CtrlButton icon="chevron-right" onClick={gForward} disabled={gameIndex >= gameMoves.length} label="Vpřed" />
+              <CtrlButton icon="skip-forward" onClick={gEnd} disabled={gameIndex >= gameMoves.length} label="Konec" />
+              <CtrlButton icon="rotate-cw" onClick={() => setFlipped((f) => !f)} label="Otočit desku" />
+            </div>
+
+            {/* Obtížnost + tah */}
+            <p className="text-center font-body text-[13px] text-[var(--text-soft)] mb-3">
+              Obtížnost:{" "}
+              <span className="text-[var(--accent)]" aria-label={`obtížnost ${game.difficulty} z 5`}>
+                {"★".repeat(game.difficulty)}
+                <span className="text-[color:var(--text-muted)]/50">
+                  {"★".repeat(5 - game.difficulty)}
+                </span>
+              </span>{" "}
+              · Tah {gameIndex} / {gameMoves.length}
             </p>
-          </div>
+
+            {/* Taby Téma / Tah / Konec */}
+            <div className="rounded-[8px] border-[0.5px] border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+              <div className="flex border-b-[0.5px] border-[var(--border)]">
+                {(
+                  [
+                    ["topic", "Téma"],
+                    ["move", "Tah"],
+                    ["result", "Konec"],
+                  ] as Array<[GameTab, string]>
+                ).map(([id, label]) => (
+                  <button
+                    key={id}
+                    onClick={() => setGameTab(id)}
+                    className={
+                      "flex-1 py-2.5 font-body text-sm transition-colors " +
+                      (gameTab === id
+                        ? "text-[var(--accent)] border-b-2 border-[var(--accent)] -mb-px font-semibold"
+                        : "text-[var(--text-soft)] hover:text-[var(--text-strong)]")
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div key={`${gameTab}-${gameIndex}`} className="p-3 fade-soft">
+                {gameTab === "move" && currentGameMove && (
+                  <div className="mb-2">
+                    <MoveToken notation={currentGameMove.notation} />
+                  </div>
+                )}
+                <p className="font-body text-[15px] leading-relaxed text-[var(--text-soft)]">
+                  {gameTab === "topic"
+                    ? game.description
+                    : gameTab === "move"
+                      ? currentGameMove
+                        ? currentGameMove.comment
+                        : "Stiskni „Vpřed“ a procházej partii tah po tahu."
+                      : gameFinished
+                        ? game.result
+                        : "Dohraj partii až do konce a zobrazí se výsledek."}
+                </p>
+              </div>
+            </div>
+
+            {/* Footer partie */}
+            <p className="text-center font-body text-[11px] text-[var(--text-muted)] mt-4">
+              {game.title} · {game.topic}
+            </p>
+          </>
         )}
+
+        </div>
+        {/* /Obsah režimu */}
 
         {/* Footer — drobečková navigace */}
         {showBoard && variation && (

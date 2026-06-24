@@ -86,9 +86,9 @@ export function DiagramView({ diagram, type }: { diagram: MoveDiagram; type: Pie
         <text
           x={pieceCol * CELL + CELL / 2}
           y={pieceRow * CELL + CELL / 2}
-          fontSize={CELL * 0.72}
+          dy="0.32em"
+          fontSize={CELL * 0.74}
           textAnchor="middle"
-          dominantBaseline="central"
           fill={pieceFillVar("white")}
           stroke={pieceStrokeVar("white")}
           strokeWidth={1.4}

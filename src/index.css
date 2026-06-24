@@ -118,7 +118,18 @@ body,
 }
 
 .fade-in {
-  animation: fadeIn 0.25s ease both;
+  animation: fadeIn 0.22s ease both;
+}
+
+/* Jemnější/rychlejší fade pro taby a panely komentáře (~150 ms) */
+@keyframes fadeSoft {
+  from {
+    opacity: 0;
+  }
+}
+
+.fade-soft {
+  animation: fadeSoft 0.15s ease both;
 }
 
 @keyframes errorFlash {
@@ -129,5 +140,26 @@ body,
   100% {
     fill: var(--bad);
     opacity: 0;
+  }
+}
+
+/* Legal-move tečky/prsteny — jemný fade-in, ať neproblikávají.
+   Keyframe uvádí jen `from`, takže cílová opacita zůstane ta z elementu. */
+@keyframes lmFade {
+  from {
+    opacity: 0;
+  }
+}
+
+.lm-marker {
+  animation: lmFade 0.12s ease-out;
+}
+
+/* Globální zpětná vazba na hover/active — respektuje redukci pohybu */
+@media (prefers-reduced-motion: reduce) {
+  .fade-in,
+  .fade-soft,
+  .lm-marker {
+    animation: none;
   }
 }

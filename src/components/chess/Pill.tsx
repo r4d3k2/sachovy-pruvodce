@@ -26,14 +26,14 @@ export function Pill({
   ...rest
 }: PillProps) {
   const base =
-    "inline-flex items-center justify-center font-body select-none transition-all duration-200 " +
+    "inline-flex items-center justify-center font-body select-none transition-all duration-[120ms] " +
     "border outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] " +
-    "disabled:opacity-40 disabled:cursor-not-allowed";
+    "active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100";
 
   const sizeByLevel: Record<number, string> = {
     1: "px-4 py-2 text-[15px] rounded-full min-h-[44px]",
-    2: "px-3.5 py-1.5 text-sm rounded-full min-h-[40px]",
-    3: "px-3 py-1.5 text-[13px] rounded-full min-h-[38px]",
+    2: "px-3.5 py-1.5 text-sm rounded-full min-h-[44px]",
+    3: "px-3 py-1.5 text-[13px] rounded-full min-h-[44px]",
   };
 
   let look: string;

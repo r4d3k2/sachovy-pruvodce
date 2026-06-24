@@ -122,6 +122,7 @@ export function ChessBoard({
       markers.push(
         <circle
           key={`mk-${sq}`}
+          className="lm-marker"
           cx={x + C / 2}
           cy={y + C / 2}
           r={C / 2 - 6}
@@ -136,6 +137,7 @@ export function ChessBoard({
       markers.push(
         <circle
           key={`mk-${sq}`}
+          className="lm-marker"
           cx={x + C / 2}
           cy={y + C / 2}
           r={14}
@@ -213,9 +215,9 @@ export function ChessBoard({
             <text
               x={0}
               y={0}
-              fontSize={C * 0.72}
+              dy="0.32em"
+              fontSize={C * 0.74}
               textAnchor="middle"
-              dominantBaseline="central"
               fill={pieceFillVar(white ? "white" : "black")}
               stroke={pieceStrokeVar(white ? "white" : "black")}
               strokeWidth={2.4}
