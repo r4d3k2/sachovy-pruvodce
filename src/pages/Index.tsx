@@ -108,10 +108,12 @@ function NavPill({
   icon?: IconName;
   children: React.ReactNode;
 }) {
+  // Kompaktnější na mobilu (nižší výška, menší font), plná velikost od sm.
+  // Dotykový cíl drží min. ~40px i na mobilu.
   const sizes: Record<number, string> = {
-    1: "text-sm px-3.5 min-h-[44px]",
-    2: "text-[13px] px-3 min-h-[44px]",
-    3: "text-[12px] px-2.5 min-h-[44px]",
+    1: "text-[14px] sm:text-[15px] px-3.5 min-h-[40px] sm:min-h-[44px]",
+    2: "text-[12px] sm:text-[13px] px-3 min-h-[40px] sm:min-h-[44px]",
+    3: "text-[11px] sm:text-[12px] px-2.5 min-h-[40px] sm:min-h-[44px]",
   };
   const look = active
     ? "bg-[var(--surface)] border-[var(--accent)] text-[var(--text-strong)]"
@@ -382,7 +384,7 @@ export default function Index() {
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
-      <div className="max-w-[400px] mx-auto px-[18px] py-5 theme-transition">
+      <div className="max-w-[440px] mx-auto px-[18px] py-5 theme-transition">
         {/* Hlavička */}
         <header className="relative text-center mb-5">
           <div className="absolute right-0 top-0">
@@ -397,7 +399,7 @@ export default function Index() {
         </header>
 
         {/* Mode pills */}
-        <nav className="flex justify-center flex-wrap gap-1.5 mb-5">
+        <nav className="flex justify-center flex-wrap gap-x-1.5 gap-y-1 mb-4">
           {MODES.map((m) => (
             <NavPill
               key={m.id}
@@ -419,7 +421,7 @@ export default function Index() {
         {/* Selektory zahájení/varianty (Studovat + Procvičovat) */}
         {showBoard && (
           <>
-            <div className="flex flex-wrap justify-center gap-1.5 mb-2">
+            <div className="flex flex-wrap justify-center gap-x-1.5 gap-y-1 mb-2">
               {OPENINGS.map((o) => (
                 <NavPill
                   key={o.id}
@@ -433,7 +435,7 @@ export default function Index() {
               ))}
             </div>
 
-            <div className="flex flex-wrap justify-center gap-1.5 mb-4">
+            <div className="flex flex-wrap justify-center gap-x-1.5 gap-y-1 mb-3">
               {opening.variations.map((v) => {
                 const res = progress[progressKey(openingId, v.id)];
                 const anyPlayed = res && (res.white.played || res.black.played);
@@ -481,7 +483,7 @@ export default function Index() {
               </div>
             )}
 
-            <div className="rounded-[10px] bg-[var(--surface)] border-[0.5px] border-[var(--border)] p-2.5 mb-3 shadow-[0_4px_18px_rgba(0,0,0,0.18)]">
+            <div className="-mx-[14px] sm:mx-0 rounded-[10px] bg-[var(--surface)] border-[0.5px] border-[var(--border)] p-2.5 mb-3 shadow-[0_4px_18px_rgba(0,0,0,0.18)]">
               <ChessBoard
                 board={board}
                 pieces={pieces}
@@ -639,7 +641,7 @@ export default function Index() {
         {mode === "games" && (
           <>
             {/* Selektor partie */}
-            <div className="flex flex-wrap justify-center gap-1.5 mb-4">
+            <div className="flex flex-wrap justify-center gap-x-1.5 gap-y-1 mb-3">
               {GAMES.map((g) => (
                 <NavPill
                   key={g.id}
@@ -654,7 +656,7 @@ export default function Index() {
             </div>
 
             {/* Deska */}
-            <div className="rounded-[10px] bg-[var(--surface)] border-[0.5px] border-[var(--border)] p-2.5 mb-3 shadow-[0_4px_18px_rgba(0,0,0,0.18)]">
+            <div className="-mx-[14px] sm:mx-0 rounded-[10px] bg-[var(--surface)] border-[0.5px] border-[var(--border)] p-2.5 mb-3 shadow-[0_4px_18px_rgba(0,0,0,0.18)]">
               <ChessBoard
                 board={gameBoard}
                 pieces={gamePieces}
