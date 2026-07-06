@@ -1,26 +1,31 @@
-// recommend.ts — chytré opakování: vybere variantu, kterou uživateli jde nejhůř.
+// recommend.ts — chytré opakování: vybere (varianta × strana), která uživateli
+// jde nejhůř.
 //
 // Priorita (od nejvyšší):
-//   1. varianty s 1★
-//   2. varianty s 2★
-//   3. nehrané varianty (bez záznamu v progress)
-//   4. varianty s 3★ (nejlepší — opakují se nejméně)
+//   1. 1★
+//   2. 2★
+//   3. nehrané
+//   4. 3★
 // V rámci stejné priority: vyšší počet zaznamenaných chyb (mistakes) první.
-// Když je vše na 3★, vrátí null (nic slabého k procvičení).
+// Jednotkou je nyní kombinace varianta + strana (bílý/černý). Když je vše
+// (obě strany všech variant) na 3★, vrátí null.
 
 import type { Opening } from "../data/openings";
-import { progressKey, type Progress } from "./storage";
+import { progressKey, type PracticeSide, type Progress, type SideResult } from "./storage";
 
 export interface Recommendation {
   openingId: string;
   variationId: string;
+  side: PracticeSide;
 }
 
+const SIDES: PracticeSide[] = ["white", "black"];
+
 // Nižší rank = vyšší priorita doporučení.
-function rankFor(stars: number | undefined): number {
-  if (stars === undefined) return 2; // nehrané
-  if (stars <= 1) return 0; // 1★
-  if (stars === 2) return 1; // 2★
+function rankFor(side: SideResult | undefined): number {
+  if (!side || !side.played) return 2; // nehrané
+  if (side.stars <= 1) return 0; // 1★
+  if (side.stars === 2) return 1; // 2★
   return 3; // 3★
 }
 
@@ -29,29 +34,38 @@ export function recommend(
   openings: Opening[],
 ): Recommendation | null {
   let best:
-    | { openingId: string; variationId: string; rank: number; mistakes: number }
+    | { openingId: string; variationId: string; side: PracticeSide; rank: number; mistakes: number }
     | null = null;
   let allMastered = true;
 
   for (const opening of openings) {
     for (const variation of opening.variations) {
-      const res = progress[progressKey(opening.id, variation.id)];
-      const rank = rankFor(res?.stars);
-      const mistakes = res?.mistakes ?? 0;
+      const vp = progress[progressKey(opening.id, variation.id)];
+      for (const side of SIDES) {
+        const sr = vp?.[side];
+        const rank = rankFor(sr);
+        const mistakes = sr?.mistakes ?? 0;
 
-      if (rank !== 3) allMastered = false;
+        if (rank !== 3) allMastered = false;
 
-      const better =
-        best === null ||
-        rank < best.rank ||
-        (rank === best.rank && mistakes > best.mistakes);
-      if (better) {
-        best = { openingId: opening.id, variationId: variation.id, rank, mistakes };
+        const better =
+          best === null ||
+          rank < best.rank ||
+          (rank === best.rank && mistakes > best.mistakes);
+        if (better) {
+          best = {
+            openingId: opening.id,
+            variationId: variation.id,
+            side,
+            rank,
+            mistakes,
+          };
+        }
       }
     }
   }
 
   // Vše zvládnuté na 3★ (nebo žádné varianty) → nic slabého k doporučení.
   if (best === null || allMastered) return null;
-  return { openingId: best.openingId, variationId: best.variationId };
+  return { openingId: best.openingId, variationId: best.variationId, side: best.side };
 }

@@ -27,13 +27,15 @@ import {
   progressKey,
   recordResult,
   saveTheme,
+  starsFromMistakes,
+  type PracticeSide,
   type Progress,
   type ThemeId,
 } from "../lib/storage";
 import { ChessBoard } from "../components/chess/ChessBoard";
 import { Pill } from "../components/chess/Pill";
 import { MoveToken } from "../components/chess/MoveToken";
-import { Stars } from "../components/chess/Stars";
+import { SideStars } from "../components/chess/Stars";
 import { ResultCard } from "../components/chess/ResultCard";
 import { ThemeSwitcher } from "../components/chess/ThemeSwitcher";
 import { PieceCard } from "../components/chess/PieceCard";
@@ -60,7 +62,6 @@ const OPENING_ICON: Record<string, IconName> = {
   "queens-gambit": "crown",
 };
 
-const PLAYER_SIDE = "white" as const; // hráč hraje bílého (default dle zadání)
 const OPPONENT_DELAY = 700;
 const ERROR_FLASH_MS = 460;
 
@@ -142,6 +143,7 @@ export default function Index() {
   const [studyTab, setStudyTab] = useState<StudyTab>("overview");
 
   // Procvičovat
+  const [practiceSide, setPracticeSide] = useState<PracticeSide>("white");
   const [practiceIndex, setPracticeIndex] = useState(0);
   const [mistakes, setMistakes] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
@@ -182,6 +184,13 @@ export default function Index() {
     setOpponentThinking(false);
   };
 
+  // V procvičování ↻ přepne stranu hráče a začne od tahu 0 (za černého se
+  // 1. bílý tah odehraje sám díky efektu níže).
+  const switchPracticeSide = () => {
+    setPracticeSide((s) => (s === "white" ? "black" : "white"));
+    resetPractice();
+  };
+
   const selectOpening = (id: string) => {
     const o = OPENINGS.find((x) => x.id === id);
     setOpeningId(id);
@@ -211,6 +220,7 @@ export default function Index() {
     setRecommendNote(null);
     setOpeningId(rec.openingId);
     setVariationId(rec.variationId);
+    setPracticeSide(rec.side);
     setStudyIndex(0);
     resetPractice();
   };
@@ -220,7 +230,8 @@ export default function Index() {
   useEffect(() => {
     if (mode !== "practice" || finished) return;
     if (practiceIndex >= moves.length) return;
-    if (moveSide(practiceIndex) === PLAYER_SIDE) return;
+    // Soupeřův tah (strana, kterou hráč nehraje) se odehraje sám.
+    if (moveSide(practiceIndex) === practiceSide) return;
 
     setOpponentThinking(true);
     const t = setTimeout(() => {
@@ -228,14 +239,14 @@ export default function Index() {
       setOpponentThinking(false);
     }, OPPONENT_DELAY);
     return () => clearTimeout(t);
-  }, [mode, practiceIndex, finished, moves.length]);
+  }, [mode, practiceIndex, finished, moves.length, practiceSide]);
 
   useEffect(() => {
     if (mode !== "practice" || finished) return;
     if (moves.length === 0 || practiceIndex < moves.length) return;
     setFinished(true);
-    setProgress(recordResult(progress, openingId, variationId, mistakes));
-  }, [mode, practiceIndex, moves.length, finished, openingId, variationId, mistakes, progress]);
+    setProgress(recordResult(progress, openingId, variationId, practiceSide, mistakes));
+  }, [mode, practiceIndex, moves.length, finished, openingId, variationId, practiceSide, mistakes, progress]);
 
   useEffect(() => {
     if (!errorSquare) return;
@@ -298,7 +309,7 @@ export default function Index() {
     !finished &&
     !opponentThinking &&
     expected !== null &&
-    moveSide(practiceIndex) === PLAYER_SIDE;
+    moveSide(practiceIndex) === practiceSide;
 
   const handleSquareClick = (sq: string) => {
     if (!isPlayerTurn || !expected) return;
@@ -306,14 +317,14 @@ export default function Index() {
     const cell = board[r][c];
 
     if (!selected) {
-      if (cell && sideOf(cell) === PLAYER_SIDE) setSelected(sq);
+      if (cell && sideOf(cell) === practiceSide) setSelected(sq);
       return;
     }
     if (sq === selected) {
       setSelected(null);
       return;
     }
-    if (cell && sideOf(cell) === PLAYER_SIDE) {
+    if (cell && sideOf(cell) === practiceSide) {
       setSelected(sq);
       return;
     }
@@ -425,6 +436,7 @@ export default function Index() {
             <div className="flex flex-wrap justify-center gap-1.5 mb-4">
               {opening.variations.map((v) => {
                 const res = progress[progressKey(openingId, v.id)];
+                const anyPlayed = res && (res.white.played || res.black.played);
                 return (
                   <NavPill
                     key={v.id}
@@ -433,9 +445,13 @@ export default function Index() {
                     onClick={() => selectVariation(v.id)}
                   >
                     {v.name}
-                    {res && (
-                      <span className="ml-1 text-[var(--accent)]" aria-hidden>
-                        {"★".repeat(res.stars)}
+                    {anyPlayed && (
+                      <span
+                        className="ml-1 flex flex-col items-start leading-none text-[9px] text-[var(--accent)]"
+                        aria-hidden
+                      >
+                        {res!.white.played && <span>♔{res!.white.stars}</span>}
+                        {res!.black.played && <span>♚{res!.black.stars}</span>}
                       </span>
                     )}
                   </NavPill>
@@ -469,7 +485,7 @@ export default function Index() {
               <ChessBoard
                 board={board}
                 pieces={pieces}
-                flipped={flipped}
+                flipped={mode === "practice" ? practiceSide === "black" : flipped}
                 lastMove={lastMove}
                 selectedSquare={boardSelected}
                 legalMoves={boardLegal}
@@ -539,18 +555,26 @@ export default function Index() {
                 {/* Procvičovat — stav */}
                 <div className="flex items-center justify-center gap-3 mb-3 flex-wrap">
                   <span className="font-mono text-[11px] text-[var(--text-soft)] bg-[var(--surface)] border-[0.5px] border-[var(--border)] rounded-2xl px-3 py-1">
-                    Tah {Math.min(practiceIndex, moves.length)} / {moves.length}
+                    {practiceSide === "white" ? "♔ Bílý" : "♚ Černý"} · Tah{" "}
+                    {Math.min(practiceIndex, moves.length)} / {moves.length}
                   </span>
                   <span className="font-mono text-[11px] text-[var(--text-muted)]">
                     Chyby: <span className={mistakes > 0 ? "text-[var(--bad)]" : ""}>{mistakes}</span>
                   </span>
-                  <CtrlButton icon="rotate-cw" onClick={() => setFlipped((f) => !f)} label="Otočit desku" />
+                  <CtrlButton
+                    icon="rotate-cw"
+                    onClick={switchPracticeSide}
+                    label="Přepnout stranu (otočit desku)"
+                  />
                 </div>
 
                 {finished ? (
                   <ResultCard
-                    stars={savedResult?.stars ?? 0}
+                    side={practiceSide}
+                    attemptStars={starsFromMistakes(mistakes)}
                     mistakes={mistakes}
+                    whiteStars={savedResult?.white.stars ?? 0}
+                    blackStars={savedResult?.black.stars ?? 0}
                     onRetry={resetPractice}
                     onNext={nextVariation ? () => selectVariation(nextVariation.id) : undefined}
                   />
@@ -719,11 +743,17 @@ export default function Index() {
 
         {/* Footer — drobečková navigace */}
         {showBoard && variation && (
-          <div className="flex items-center justify-center gap-2 mt-4">
+          <div className="flex items-center justify-center gap-3 mt-4">
             <p className="text-center font-body text-[11px] text-[var(--text-muted)]">
               {opening.name} · {variation.name}
             </p>
-            {savedResult && <Stars count={savedResult.stars} size={12} />}
+            {savedResult && (savedResult.white.played || savedResult.black.played) && (
+              <SideStars
+                white={savedResult.white.stars}
+                black={savedResult.black.stars}
+                size={11}
+              />
+            )}
           </div>
         )}
       </div>

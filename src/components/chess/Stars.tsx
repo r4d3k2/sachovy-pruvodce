@@ -21,3 +21,37 @@ export function Stars({ count, size = 22, className = "" }: StarsProps) {
     </div>
   );
 }
+
+// Dvě řady hvězdiček — bílý (♔) a černý (♚) zvlášť. Nehraná strana = obrysy.
+interface SideStarsProps {
+  white: number;
+  black: number;
+  size?: number;
+  className?: string;
+}
+
+export function SideStars({ white, black, size = 16, className = "" }: SideStarsProps) {
+  const glyphSize = size + 3;
+  return (
+    <div className={`flex flex-col gap-1 ${className}`}>
+      {(
+        [
+          ["♔", white, "Bílý"],
+          ["♚", black, "Černý"],
+        ] as Array<[string, number, string]>
+      ).map(([glyph, count, label]) => (
+        <div key={label} className="flex items-center gap-1.5">
+          <span
+            aria-hidden
+            style={{ fontSize: glyphSize, lineHeight: 1 }}
+            className="text-[var(--text-soft)]"
+          >
+            {glyph}
+          </span>
+          <span className="sr-only">{label}:</span>
+          <Stars count={count} size={size} />
+        </div>
+      ))}
+    </div>
+  );
+}
