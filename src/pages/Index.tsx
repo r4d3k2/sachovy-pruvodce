@@ -60,6 +60,10 @@ const OPENING_ICON: Record<string, IconName> = {
   french: "flag",
   sicilian: "shield",
   "queens-gambit": "crown",
+  "caro-kann": "shield",
+  scandinavian: "flag",
+  petrov: "flag",
+  "kings-indian": "crown",
 };
 
 const OPPONENT_DELAY = 700;
