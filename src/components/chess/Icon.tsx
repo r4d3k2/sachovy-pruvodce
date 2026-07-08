@@ -15,6 +15,8 @@ export type IconName =
   | "crown"
   | "history"
   | "swords"
+  | "trophy"
+  | "alert-triangle"
   | "flag"
   | "shield"
   | "circle-dot"
@@ -80,6 +82,23 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <line x1="5" x2="9" y1="14" y2="18" />
       <line x1="7" x2="4" y1="17" y2="20" />
       <line x1="3" x2="5" y1="19" y2="21" />
+    </>
+  ),
+  trophy: (
+    <>
+      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+      <path d="M4 22h16" />
+      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+    </>
+  ),
+  "alert-triangle": (
+    <>
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+      <path d="M12 9v4" />
+      <path d="M12 17h.01" />
     </>
   ),
   flag: (

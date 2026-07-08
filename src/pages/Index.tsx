@@ -162,6 +162,7 @@ export default function Index() {
   const [piecesTab, setPiecesTab] = useState<PiecesTab>("cards");
 
   // Partie
+  const [gameCategory, setGameCategory] = useState<"classic" | "trap">("classic");
   const [gameId, setGameId] = useState(GAMES[0].id);
   const [gameIndex, setGameIndex] = useState(0);
   const [gameTab, setGameTab] = useState<GameTab>("topic");
@@ -280,6 +281,9 @@ export default function Index() {
 
   // === Partie — odvozené hodnoty =========================================
 
+  const categoryGames = GAMES.filter(
+    (g) => (g.category ?? "classic") === gameCategory,
+  );
   const game = GAMES.find((g) => g.id === gameId) ?? GAMES[0];
   const gameMoves = game.moves;
   const gameBoard = useMemo(
@@ -301,6 +305,13 @@ export default function Index() {
     setGameId(id);
     setGameIndex(0);
     setGameTab("topic");
+  };
+  // Přepnutí kategorie vybere první partii dané kategorie.
+  const selectGameCategory = (cat: "classic" | "trap") => {
+    if (cat === gameCategory) return;
+    setGameCategory(cat);
+    const first = GAMES.find((g) => (g.category ?? "classic") === cat);
+    if (first) selectGame(first.id);
   };
   const gStart = () => setGameIndex(0);
   const gBack = () => setGameIndex((i) => Math.max(0, i - 1));
@@ -644,9 +655,29 @@ export default function Index() {
         {/* === Partie ==================================================== */}
         {mode === "games" && (
           <>
+            {/* Přepínač kategorie */}
+            <div className="flex justify-center gap-1.5 mb-2">
+              <NavPill
+                size={2}
+                icon="trophy"
+                active={gameCategory === "classic"}
+                onClick={() => selectGameCategory("classic")}
+              >
+                Slavné partie
+              </NavPill>
+              <NavPill
+                size={2}
+                icon="alert-triangle"
+                active={gameCategory === "trap"}
+                onClick={() => selectGameCategory("trap")}
+              >
+                Pasti
+              </NavPill>
+            </div>
+
             {/* Selektor partie */}
             <div className="flex flex-wrap justify-center gap-x-1.5 gap-y-1 mb-3">
-              {GAMES.map((g) => (
+              {categoryGames.map((g) => (
                 <NavPill
                   key={g.id}
                   size={2}
