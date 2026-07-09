@@ -104,6 +104,21 @@ body,
     color 0.3s ease;
 }
 
+/* Full-bleed šachovnice na mobilu: rám desky sahá ~8px od okrajů displeje
+   bez ohledu na padding i max-width kontejneru (100vw breakout). */
+@media (max-width: 767px) {
+  .board-wrap {
+    width: calc(100vw - 16px);
+    margin-left: calc(50% - 50vw + 8px);
+    margin-right: 0;
+  }
+
+  /* Pojistka: 100vw nepočítá s klasickým scrollbarem (úzká desktopová okna) */
+  body {
+    overflow-x: hidden;
+  }
+}
+
 /* === Pomocné animace ==================================================== */
 
 @keyframes fadeIn {

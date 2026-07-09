@@ -498,7 +498,7 @@ export default function Index() {
               </div>
             )}
 
-            <div className="-mx-[14px] sm:mx-0 rounded-[10px] bg-[var(--surface)] border-[0.5px] border-[var(--border)] p-2.5 mb-3 shadow-[0_4px_18px_rgba(0,0,0,0.18)]">
+            <div className="board-wrap rounded-[10px] bg-[var(--surface)] border-[0.5px] border-[var(--border)] p-2.5 mb-3 shadow-[0_4px_18px_rgba(0,0,0,0.18)]">
               <ChessBoard
                 board={board}
                 pieces={pieces}
@@ -691,7 +691,7 @@ export default function Index() {
             </div>
 
             {/* Deska */}
-            <div className="-mx-[14px] sm:mx-0 rounded-[10px] bg-[var(--surface)] border-[0.5px] border-[var(--border)] p-2.5 mb-3 shadow-[0_4px_18px_rgba(0,0,0,0.18)]">
+            <div className="board-wrap rounded-[10px] bg-[var(--surface)] border-[0.5px] border-[var(--border)] p-2.5 mb-3 shadow-[0_4px_18px_rgba(0,0,0,0.18)]">
               <ChessBoard
                 board={gameBoard}
                 pieces={gamePieces}
