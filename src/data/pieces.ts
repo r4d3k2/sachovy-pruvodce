@@ -176,7 +176,7 @@ export const PIECES: PieceInfo[] = [
     csName: "Pěšec",
     value: "1 bod",
     movement:
-      "Pěšec jde dopředu o jedno pole, z výchozí řady může rovnou o dvě. Bere ale jinak než táhne — pouze úhlopříčně dopředu o jedno pole. Dojde-li na poslední řadu, promění se v jinou figuru (nejčastěji v dámu).",
+      "Pěšec jde dopředu o jedno pole, z výchozí řady může rovnou o dvě. Bere ale jinak než táhne — pouze úhlopříčně dopředu o jedno pole. Dojde-li na poslední řadu, promění se v jinou figuru (nejčastěji v dámu). Zvláštnost: přeskočí-li soupeřův pěšec dvojkrokem pole, které tvůj pěšec napadá, smíš ho hned následujícím tahem vzít „mimochodem“ (en passant).",
     diagrams: [
       {
         rows: 5,
