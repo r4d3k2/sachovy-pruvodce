@@ -43,7 +43,9 @@ a UX pattern.
 
 - src/lib/chess-engine.ts — pravidla pohybu, validace, applyMove
 - src/lib/chess-tracking.ts — stabilní ID figur pro animace
-- src/lib/storage.ts — localStorage (téma, pokrok)
+- src/lib/storage.ts — localStorage (téma, pokrok, přepínač předčítání)
+- src/lib/speech.ts — předčítání (Web Speech API) + převod notace na řeč
+- src/lib/useSpeech.ts — React hook nad speech.ts
 - src/lib/recommend.ts — chytré opakování slabých míst
 - src/data/openings.ts — 5 zahájení × 19 variant × tahy
 - src/data/pieces.ts — 6 figur + diagramy

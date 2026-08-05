@@ -170,11 +170,27 @@ body,
   animation: lmFade 0.12s ease-out;
 }
 
+/* Ikonka reproduktoru během předčítání — jemné pulzování */
+@keyframes speakPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.speak-pulse {
+  animation: speakPulse 1.4s ease-in-out infinite;
+}
+
 /* Globální zpětná vazba na hover/active — respektuje redukci pohybu */
 @media (prefers-reduced-motion: reduce) {
   .fade-in,
   .fade-soft,
-  .lm-marker {
+  .lm-marker,
+  .speak-pulse {
     animation: none;
   }
 }

@@ -24,14 +24,17 @@ import {
   applyTheme,
   loadProgress,
   loadTheme,
+  loadTtsEnabled,
   progressKey,
   recordResult,
   saveTheme,
+  saveTtsEnabled,
   starsFromMistakes,
   type PracticeSide,
   type Progress,
   type ThemeId,
 } from "../lib/storage";
+import { useSpeech } from "../lib/useSpeech";
 import { ChessBoard } from "../components/chess/ChessBoard";
 import { Pill } from "../components/chess/Pill";
 import { MoveToken } from "../components/chess/MoveToken";
@@ -41,6 +44,7 @@ import { ThemeSwitcher } from "../components/chess/ThemeSwitcher";
 import { PieceCard } from "../components/chess/PieceCard";
 import { PieceQuiz } from "../components/chess/PieceQuiz";
 import { Icon, type IconName } from "../components/chess/Icon";
+import { ReadMovesToggle, SpeakButton } from "../components/chess/SpeakControls";
 
 type Mode = "study" | "practice" | "pieces" | "games";
 type StudyTab = "overview" | "history" | "move";
@@ -68,6 +72,25 @@ const OPENING_ICON: Record<string, IconName> = {
 
 const OPPONENT_DELAY = 700;
 const ERROR_FLASH_MS = 460;
+
+// Zástupné/prázdné texty (třeba chybějící historie) nemá smysl předčítat.
+function isSpeakable(text: string | null | undefined): boolean {
+  if (!text) return false;
+  const t = text.trim();
+  return t.length > 1 && t !== "—";
+}
+
+// Popisek nad textem tabu — dává ikonce reproduktoru přirozené místo.
+function TabHeading({ label, children }: { label: string; children?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-2 mb-1.5 min-h-[40px]">
+      <span className="font-body text-[11px] uppercase tracking-[1.5px] text-[var(--text-muted)]">
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
 
 // Kulaté ovládací tlačítko pod deskou
 function CtrlButton({
@@ -170,6 +193,16 @@ export default function Index() {
   // Doporučení slabého místa (toast)
   const [recommendNote, setRecommendNote] = useState<string | null>(null);
 
+  // Předčítání (Web Speech API) — jen Studovat a Partie
+  const speech = useSpeech();
+  const [ttsEnabled, setTtsEnabled] = useState(() => loadTtsEnabled());
+
+  const changeTtsEnabled = (v: boolean) => {
+    setTtsEnabled(v);
+    saveTtsEnabled(v);
+    if (!v) speech.stop();
+  };
+
   const opening = OPENINGS.find((o) => o.id === openingId) ?? OPENINGS[0];
   const variation =
     opening.variations.find((v) => v.id === variationId) ?? opening.variations[0];
@@ -180,6 +213,22 @@ export default function Index() {
     applyTheme(theme);
     saveTheme(theme);
   }, [theme]);
+
+  // Předčítání zastav při přepnutí režimu, zahájení, varianty nebo partie.
+  const stopSpeech = speech.stop;
+  useEffect(() => {
+    stopSpeech();
+  }, [mode, openingId, variationId, gameId, stopSpeech]);
+
+  // Přepnutí tabu rovněž ruší probíhající čtení (indikátor je společný).
+  const changeStudyTab = (tab: StudyTab) => {
+    stopSpeech();
+    setStudyTab(tab);
+  };
+  const changeGameTab = (tab: GameTab) => {
+    stopSpeech();
+    setGameTab(tab);
+  };
 
   const resetPractice = () => {
     setPracticeIndex(0);
@@ -300,6 +349,16 @@ export default function Index() {
       : null;
   const currentGameMove = gameIndex > 0 ? gameMoves[gameIndex - 1] : null;
   const gameFinished = gameIndex >= gameMoves.length;
+  const gameTabContent =
+    gameTab === "topic"
+      ? game.description
+      : gameTab === "move"
+        ? currentGameMove
+          ? currentGameMove.comment
+          : "Stiskni „Vpřed“ a procházej partii tah po tahu."
+        : gameFinished
+          ? game.result
+          : "Dohraj partii až do konce a zobrazí se výsledek.";
 
   const selectGame = (id: string) => {
     setGameId(id);
@@ -313,10 +372,28 @@ export default function Index() {
     const first = GAMES.find((g) => (g.category ?? "classic") === cat);
     if (first) selectGame(first.id);
   };
-  const gStart = () => setGameIndex(0);
-  const gBack = () => setGameIndex((i) => Math.max(0, i - 1));
-  const gForward = () => setGameIndex((i) => Math.min(gameMoves.length, i + 1));
-  const gEnd = () => setGameIndex(gameMoves.length);
+  const gStart = () => {
+    stopSpeech();
+    setGameIndex(0);
+  };
+  const gBack = () => {
+    stopSpeech();
+    setGameIndex((i) => Math.max(0, i - 1));
+  };
+  const gForward = () => {
+    if (gameIndex >= gameMoves.length) return;
+    const next = gameIndex + 1;
+    setGameIndex(next);
+    if (ttsEnabled && isSpeakable(gameMoves[next - 1]?.comment)) {
+      speech.speak(gameMoves[next - 1].comment);
+    } else {
+      stopSpeech();
+    }
+  };
+  const gEnd = () => {
+    stopSpeech();
+    setGameIndex(gameMoves.length);
+  };
 
   // === Procvičovat — interakce ============================================
 
@@ -372,11 +449,30 @@ export default function Index() {
           : []
       : [];
 
-  // Navigace (Studovat)
-  const goStart = () => setStudyIndex(0);
-  const goBack = () => setStudyIndex((i) => Math.max(0, i - 1));
-  const goForward = () => setStudyIndex((i) => Math.min(moves.length, i + 1));
-  const goEnd = () => setStudyIndex(moves.length);
+  // Navigace (Studovat) — čtení spouští POUZE Vpřed, ostatní ho jen ruší.
+  const goStart = () => {
+    stopSpeech();
+    setStudyIndex(0);
+  };
+  const goBack = () => {
+    stopSpeech();
+    setStudyIndex((i) => Math.max(0, i - 1));
+  };
+  const goForward = () => {
+    if (studyIndex >= moves.length) return;
+    const next = studyIndex + 1;
+    setStudyIndex(next);
+    // speak() voláme přímo z click handleru — iOS vyžaduje uživatelské gesto.
+    if (ttsEnabled && isSpeakable(moves[next - 1]?.comment)) {
+      speech.speak(moves[next - 1].comment);
+    } else {
+      stopSpeech();
+    }
+  };
+  const goEnd = () => {
+    stopSpeech();
+    setStudyIndex(moves.length);
+  };
 
   const currentStudyMove = studyIndex > 0 ? moves[studyIndex - 1] : null;
   const studyTabContent =
@@ -543,7 +639,7 @@ export default function Index() {
                     ).map(([id, label]) => (
                       <button
                         key={id}
-                        onClick={() => setStudyTab(id)}
+                        onClick={() => changeStudyTab(id)}
                         className={
                           "flex-1 py-2.5 font-body text-sm transition-colors " +
                           (studyTab === id
@@ -561,9 +657,21 @@ export default function Index() {
                         <MoveToken notation={currentStudyMove.notation} />
                       </div>
                     )}
+                    {studyTab !== "move" && speech.supported && (
+                      <TabHeading label={studyTab === "overview" ? "Strategie" : "Historie"}>
+                        <SpeakButton
+                          speaking={speech.speaking}
+                          disabled={!isSpeakable(studyTabContent)}
+                          onToggle={() => speech.toggle(studyTabContent)}
+                        />
+                      </TabHeading>
+                    )}
                     <p className="font-body text-[15px] leading-relaxed text-[var(--text-soft)]">
                       {studyTabContent}
                     </p>
+                    {studyTab === "move" && speech.supported && (
+                      <ReadMovesToggle checked={ttsEnabled} onChange={changeTtsEnabled} />
+                    )}
                   </div>
                 </div>
               </>
@@ -736,7 +844,7 @@ export default function Index() {
                 ).map(([id, label]) => (
                   <button
                     key={id}
-                    onClick={() => setGameTab(id)}
+                    onClick={() => changeGameTab(id)}
                     className={
                       "flex-1 py-2.5 font-body text-sm transition-colors " +
                       (gameTab === id
@@ -754,17 +862,21 @@ export default function Index() {
                     <MoveToken notation={currentGameMove.notation} />
                   </div>
                 )}
+                {gameTab !== "move" && speech.supported && (
+                  <TabHeading label={gameTab === "topic" ? "Téma" : "Konec"}>
+                    <SpeakButton
+                      speaking={speech.speaking}
+                      disabled={!isSpeakable(gameTabContent)}
+                      onToggle={() => speech.toggle(gameTabContent)}
+                    />
+                  </TabHeading>
+                )}
                 <p className="font-body text-[15px] leading-relaxed text-[var(--text-soft)]">
-                  {gameTab === "topic"
-                    ? game.description
-                    : gameTab === "move"
-                      ? currentGameMove
-                        ? currentGameMove.comment
-                        : "Stiskni „Vpřed“ a procházej partii tah po tahu."
-                      : gameFinished
-                        ? game.result
-                        : "Dohraj partii až do konce a zobrazí se výsledek."}
+                  {gameTabContent}
                 </p>
+                {gameTab === "move" && speech.supported && (
+                  <ReadMovesToggle checked={ttsEnabled} onChange={changeTtsEnabled} />
+                )}
               </div>
             </div>
 

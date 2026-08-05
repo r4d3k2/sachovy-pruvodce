@@ -24,7 +24,9 @@ export type IconName =
   | "chevron-left"
   | "chevron-right"
   | "skip-forward"
-  | "rotate-cw";
+  | "rotate-cw"
+  | "volume"
+  | "volume-stop";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   moon: <path d="M12 3a6.4 6.4 0 0 0 9 9 9 9 0 1 1-9-9Z" />,
@@ -132,6 +134,21 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
       <path d="M21 3v5h-5" />
+    </>
+  ),
+  // Reproduktor s vlnkami — „přečíst nahlas"
+  volume: (
+    <>
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+      <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+      <path d="M19 4.9a9 9 0 0 1 0 14.2" />
+    </>
+  ),
+  // Reproduktor se stopkou — stav „právě čte" (klik zastaví)
+  "volume-stop": (
+    <>
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+      <rect x="15" y="9" width="6" height="6" rx="1" />
     </>
   ),
 };

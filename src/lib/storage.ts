@@ -1,8 +1,9 @@
-// storage.ts — perzistence v localStorage (téma a pokrok).
+// storage.ts — perzistence v localStorage (téma, pokrok, předčítání).
 //
 // Žádný backend; vše drží prohlížeč. Klíče:
 //   sach-pruvodce-theme    — vybrané téma
 //   sach-pruvodce-progress — výsledky procvičování po variantách
+//   sach-pruvodce-tts      — přepínač „Číst tahy nahlas"
 
 export type ThemeId =
   | "wooden-night"
@@ -19,6 +20,7 @@ export const THEMES: ThemeId[] = [
 
 const THEME_KEY = "sach-pruvodce-theme";
 const PROGRESS_KEY = "sach-pruvodce-progress";
+const TTS_KEY = "sach-pruvodce-tts";
 
 const DEFAULT_THEME: ThemeId = "wooden-night";
 
@@ -46,6 +48,25 @@ export function saveTheme(theme: ThemeId): void {
 
 export function applyTheme(theme: ThemeId): void {
   document.documentElement.setAttribute("data-theme", theme);
+}
+
+// --- Předčítání tahů ---------------------------------------------------------
+
+// Výchozí stav je vypnuto — zvuk se nesmí spustit sám od sebe.
+export function loadTtsEnabled(): boolean {
+  try {
+    return localStorage.getItem(TTS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function saveTtsEnabled(enabled: boolean): void {
+  try {
+    localStorage.setItem(TTS_KEY, enabled ? "1" : "0");
+  } catch {
+    /* ignoruj */
+  }
 }
 
 // --- Pokrok ------------------------------------------------------------------
