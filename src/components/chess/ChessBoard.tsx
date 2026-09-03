@@ -199,36 +199,45 @@ export function ChessBoard({
       {markers}
       {coordLabels}
 
-      {/* Vrstva 2: figury — Unicode glyfy se stabilním ID (plynulá animace) */}
-      {pieces.map((p) => {
-        const [x, y] = toXY(p.row, p.col);
-        const white = sideOf(p.symbol) === "white";
-        return (
-          <g
-            key={p.id}
-            transform={`translate(${x + C / 2}, ${y + C / 2})`}
-            style={{
-              transition: "transform 0.32s cubic-bezier(0.4, 0, 0.2, 1)",
-              pointerEvents: "none",
-            }}
-          >
-            <text
-              x={0}
-              y={0}
-              dy="0.32em"
-              fontSize={C * 0.74}
-              textAnchor="middle"
-              fill={pieceFillVar(white ? "white" : "black")}
-              stroke={pieceStrokeVar(white ? "white" : "black")}
-              strokeWidth={2.4}
-              paintOrder="stroke"
-              style={{ fontFamily: GLYPH_FONT }}
+      {/* Vrstva 2: figury — Unicode glyfy se stabilním ID (plynulá animace).
+          Samostatná <g> skupina, aby překreslení polí nenutilo překreslit figury. */}
+      <g>
+        {pieces.map((p) => {
+          const [x, y] = toXY(p.row, p.col);
+          const white = sideOf(p.symbol) === "white";
+          return (
+            <g
+              key={p.id}
+              style={{
+                // CSS vlastnost `transform` (ne SVG atribut) — WebKit/iOS Safari
+                // atribut transform přes transition spolehlivě neinterpoluje.
+                // `px` = uživatelská jednotka SVG, tedy stejná soustava jako viewBox.
+                transform: `translate(${x + C / 2}px, ${y + C / 2}px)`,
+                transition: "transform 0.32s cubic-bezier(0.4, 0, 0.2, 1)",
+                // Vlastní vrstva jen pro animované figury — obtažený text je
+                // drahý na překreslení (paintOrder="stroke" jede na CPU).
+                willChange: "transform",
+                pointerEvents: "none",
+              }}
             >
-              {GLYPH[p.symbol]}
-            </text>
-          </g>
-        );
-      })}
+              <text
+                x={0}
+                y={0}
+                dy="0.32em"
+                fontSize={C * 0.74}
+                textAnchor="middle"
+                fill={pieceFillVar(white ? "white" : "black")}
+                stroke={pieceStrokeVar(white ? "white" : "black")}
+                strokeWidth={2.4}
+                paintOrder="stroke"
+                style={{ fontFamily: GLYPH_FONT }}
+              >
+                {GLYPH[p.symbol]}
+              </text>
+            </g>
+          );
+        })}
+      </g>
     </svg>
   );
 }
