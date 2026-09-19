@@ -12,8 +12,9 @@ export function Stars({ count, size = 22, className = "" }: StarsProps) {
       {[1, 2, 3].map((i) => (
         <span
           key={i}
-          style={{ fontSize: size, lineHeight: 1 }}
-          className={i <= count ? "text-[var(--accent)]" : "text-[color:var(--text-muted)]/40"}
+          // Tailwind v3 negeneruje „text-[color:var(--x)]/40" — průhlednost řeší opacity.
+          style={{ fontSize: size, lineHeight: 1, opacity: i <= count ? 1 : 0.4 }}
+          className={i <= count ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}
         >
           {i <= count ? "★" : "☆"}
         </span>

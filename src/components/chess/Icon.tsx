@@ -23,6 +23,7 @@ export type IconName =
   | "skip-back"
   | "chevron-left"
   | "chevron-right"
+  | "chevron-down"
   | "skip-forward"
   | "rotate-cw"
   | "volume"
@@ -124,6 +125,7 @@ const PATHS: Record<IconName, React.ReactNode> = {
   ),
   "chevron-left": <path d="m15 18-6-6 6-6" />,
   "chevron-right": <path d="m9 18 6-6-6-6" />,
+  "chevron-down": <path d="m6 9 6 6 6-6" />,
   "skip-forward": (
     <>
       <polygon points="5 4 15 12 5 20 5 4" />

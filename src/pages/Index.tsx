@@ -1,7 +1,8 @@
 // Index.tsx — hlavní stránka se 4 režimy (vizuál ve stylu xiangqi-pruvodce).
 //
 // Studovat — procházení tahů s komentářem.
-// Procvičovat — hráč hádá tahy klikáním, engine validuje a ukazuje legální pole.
+// Procvičovat — hráč hádá tahy klikáním, engine validuje a ukazuje plně legální
+//               pole (včetně rošády a braní mimochodem, bez tahů do šachu).
 // Figury — karty figur + kvíz.
 // Partie — připravujeme (Fáze 4).
 //
@@ -10,16 +11,17 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   applyMovesUpTo,
-  legalTargets,
+  legalTargetsFull,
   moveSide,
   sideOf,
   squareToCoords,
+  stateAfterMoves,
 } from "../lib/chess-engine";
 import { trackedPiecesUpTo } from "../lib/chess-tracking";
 import { recommend } from "../lib/recommend";
-import { OPENINGS } from "../data/openings";
+import { OPENINGS, type Opening } from "../data/openings";
 import { PIECES } from "../data/pieces";
-import { GAMES } from "../data/games";
+import { GAMES, type Game } from "../data/games";
 import {
   applyTheme,
   loadProgress,
@@ -45,6 +47,7 @@ import { PieceCard } from "../components/chess/PieceCard";
 import { PieceQuiz } from "../components/chess/PieceQuiz";
 import { Icon, type IconName } from "../components/chess/Icon";
 import { ReadMovesToggle, SpeakButton } from "../components/chess/SpeakControls";
+import { DifficultyStars, GamePicker } from "../components/chess/GamePicker";
 
 type Mode = "study" | "practice" | "pieces" | "games";
 type StudyTab = "overview" | "history" | "move";
@@ -68,7 +71,67 @@ const OPENING_ICON: Record<string, IconName> = {
   scandinavian: "flag",
   petrov: "flag",
   "kings-indian": "crown",
+  spanish: "crown",
+  scotch: "flag",
+  "nimzo-indian": "shield",
+  english: "flag",
 };
+
+// Seskupení zahájení podle prvního tahu bílého — 13 pilulek v jedné řadě
+// by na mobilu zabralo půl obrazovky. Skupina se odvozuje z dat (první tah
+// první varianty), takže nová zahájení se zařadí sama.
+type OpeningGroup = "e4" | "d4" | "other";
+
+const OPENING_GROUPS: Array<{ id: OpeningGroup; label: string }> = [
+  { id: "e4", label: "1. e4" },
+  { id: "d4", label: "1. d4" },
+  { id: "other", label: "Ostatní" },
+];
+
+function openingGroupOf(o: Opening): OpeningGroup {
+  const first = o.variations[0]?.moves[0];
+  if (first?.to === "e4" && first.piece === "P") return "e4";
+  if (first?.to === "d4" && first.piece === "P") return "d4";
+  return "other";
+}
+
+// Partie dané kategorie v pořadí pro selektor: pasti seřazené podle obtížnosti
+// (stabilně — při shodě zůstává pořadí dat), slavné partie v pořadí dat.
+function gamesOfCategory(cat: "classic" | "trap"): Game[] {
+  const list = GAMES.filter((g) => (g.category ?? "classic") === cat);
+  return cat === "trap" ? [...list].sort((a, b) => a.difficulty - b.difficulty) : list;
+}
+
+// Křížové odkazy: partie/pasti související se zahájením = ty, které zahájení
+// uvádí ve svém `related`, plus ty, které na zahájení odkazují samy. Pořadí:
+// nejdřív výčet zahájení, pak pořadí dat. (A obráceně pro partii → zahájení.)
+function relatedGamesOf(opening: Opening): Game[] {
+  const out: Game[] = [];
+  const seen = new Set<string>();
+  const push = (g: Game | undefined) => {
+    if (g && !seen.has(g.id)) {
+      seen.add(g.id);
+      out.push(g);
+    }
+  };
+  for (const id of opening.related ?? []) push(GAMES.find((g) => g.id === id));
+  for (const g of GAMES) if (g.related?.includes(opening.id)) push(g);
+  return out;
+}
+
+function relatedOpeningsOf(game: Game): Opening[] {
+  const out: Opening[] = [];
+  const seen = new Set<string>();
+  const push = (o: Opening | undefined) => {
+    if (o && !seen.has(o.id)) {
+      seen.add(o.id);
+      out.push(o);
+    }
+  };
+  for (const id of game.related ?? []) push(OPENINGS.find((o) => o.id === id));
+  for (const o of OPENINGS) if (o.related?.includes(game.id)) push(o);
+  return out;
+}
 
 const OPPONENT_DELAY = 700;
 const ERROR_FLASH_MS = 460;
@@ -165,6 +228,7 @@ export default function Index() {
 
   const [openingId, setOpeningId] = useState("italian");
   const [variationId, setVariationId] = useState("pianissimo");
+  const [openingGroup, setOpeningGroup] = useState<OpeningGroup>("e4");
   const [flipped, setFlipped] = useState(false);
 
   // Studovat
@@ -189,6 +253,7 @@ export default function Index() {
   const [gameId, setGameId] = useState(GAMES[0].id);
   const [gameIndex, setGameIndex] = useState(0);
   const [gameTab, setGameTab] = useState<GameTab>("topic");
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Doporučení slabého místa (toast)
   const [recommendNote, setRecommendNote] = useState<string | null>(null);
@@ -251,8 +316,16 @@ export default function Index() {
     const o = OPENINGS.find((x) => x.id === id);
     setOpeningId(id);
     setVariationId(o?.variations[0]?.id ?? "");
+    if (o) setOpeningGroup(openingGroupOf(o));
     setStudyIndex(0);
     resetPractice();
+  };
+
+  // Přepnutí skupiny vybere její první zahájení (stejně jako kategorie partií).
+  const selectOpeningGroup = (g: OpeningGroup) => {
+    if (g === openingGroup) return;
+    const first = OPENINGS.find((o) => openingGroupOf(o) === g);
+    if (first) selectOpening(first.id);
   };
 
   const selectVariation = (id: string) => {
@@ -263,6 +336,7 @@ export default function Index() {
 
   const selectMode = (m: Mode) => {
     setMode(m);
+    setPickerOpen(false);
     if (m === "practice") resetPractice();
   };
 
@@ -276,6 +350,8 @@ export default function Index() {
     setRecommendNote(null);
     setOpeningId(rec.openingId);
     setVariationId(rec.variationId);
+    const recOpening = OPENINGS.find((o) => o.id === rec.openingId);
+    if (recOpening) setOpeningGroup(openingGroupOf(recOpening));
     setPracticeSide(rec.side);
     setStudyIndex(0);
     resetPractice();
@@ -320,7 +396,9 @@ export default function Index() {
   // === Odvozené hodnoty desky =============================================
 
   const activeIndex = mode === "practice" ? practiceIndex : studyIndex;
-  const board = useMemo(() => applyMovesUpTo(moves, activeIndex), [moves, activeIndex]);
+  // Plný stav (strana na tahu, práva na rošádu, e.p. pole) — deska je jeho součást.
+  const gameState = useMemo(() => stateAfterMoves(moves, activeIndex), [moves, activeIndex]);
+  const board = gameState.board;
   const pieces = useMemo(() => trackedPiecesUpTo(moves, activeIndex), [moves, activeIndex]);
 
   const lastMove =
@@ -330,9 +408,7 @@ export default function Index() {
 
   // === Partie — odvozené hodnoty =========================================
 
-  const categoryGames = GAMES.filter(
-    (g) => (g.category ?? "classic") === gameCategory,
-  );
+  const categoryGames = useMemo(() => gamesOfCategory(gameCategory), [gameCategory]);
   const game = GAMES.find((g) => g.id === gameId) ?? GAMES[0];
   const gameMoves = game.moves;
   const gameBoard = useMemo(
@@ -364,14 +440,30 @@ export default function Index() {
     setGameId(id);
     setGameIndex(0);
     setGameTab("topic");
+    setPickerOpen(false);
   };
-  // Přepnutí kategorie vybere první partii dané kategorie.
+  // Přepnutí kategorie vybere první partii dané kategorie (v pořadí selektoru).
   const selectGameCategory = (cat: "classic" | "trap") => {
     if (cat === gameCategory) return;
     setGameCategory(cat);
-    const first = GAMES.find((g) => (g.category ?? "classic") === cat);
+    const first = gamesOfCategory(cat)[0];
     if (first) selectGame(first.id);
   };
+  // Odkaz ze Studovat → Partie: přepne kategorii i partii a režim.
+  const openGame = (id: string) => {
+    const g = GAMES.find((x) => x.id === id);
+    if (!g) return;
+    setGameCategory(g.category ?? "classic");
+    selectGame(id);
+    setMode("games");
+  };
+  // Odkaz z Partie → Studovat: vybere zahájení a přepne režim.
+  const openOpening = (id: string) => {
+    selectOpening(id);
+    setStudyTab("overview");
+    setMode("study");
+  };
+
   const gStart = () => {
     stopSpeech();
     setGameIndex(0);
@@ -443,7 +535,7 @@ export default function Index() {
   const boardLegal =
     mode === "practice"
       ? selected
-        ? legalTargets(board, selected)
+        ? legalTargetsFull(gameState, selected)
         : hintLevel >= 2 && expected
           ? [expected.to]
           : []
@@ -491,6 +583,8 @@ export default function Index() {
       : null;
 
   const savedResult = progress[progressKey(openingId, variationId)];
+  const relatedGames = useMemo(() => relatedGamesOf(opening), [opening]);
+  const relatedOpenings = useMemo(() => relatedOpeningsOf(game), [game]);
   const showBoard = mode === "study" || mode === "practice";
 
   return (
@@ -532,8 +626,22 @@ export default function Index() {
         {/* Selektory zahájení/varianty (Studovat + Procvičovat) */}
         {showBoard && (
           <>
+            {/* Skupiny zahájení podle prvního tahu */}
+            <div className="flex justify-center gap-1.5 mb-2">
+              {OPENING_GROUPS.map((g) => (
+                <NavPill
+                  key={g.id}
+                  size={2}
+                  active={g.id === openingGroup}
+                  onClick={() => selectOpeningGroup(g.id)}
+                >
+                  {g.label}
+                </NavPill>
+              ))}
+            </div>
+
             <div className="flex flex-wrap justify-center gap-x-1.5 gap-y-1 mb-2">
-              {OPENINGS.map((o) => (
+              {OPENINGS.filter((o) => openingGroupOf(o) === openingGroup).map((o) => (
                 <NavPill
                   key={o.id}
                   size={2}
@@ -674,6 +782,36 @@ export default function Index() {
                     )}
                   </div>
                 </div>
+
+                {/* Související pasti a partie — klik přepne do režimu Partie */}
+                {relatedGames.length > 0 && (
+                  <div className="mt-3 rounded-[8px] border-[0.5px] border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+                    <p className="px-3 pt-2.5 pb-1.5 font-body text-[11px] uppercase tracking-[1.5px] text-[var(--text-muted)]">
+                      Související pasti a partie
+                    </p>
+                    {relatedGames.map((g) => (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => openGame(g.id)}
+                        className="w-full min-h-[44px] flex items-center gap-2.5 px-3 py-1.5 text-left text-[var(--text-soft)] border-t-[0.5px] border-t-[var(--border)] transition-colors duration-[120ms] hover:text-[var(--text-strong)]"
+                      >
+                        <Icon
+                          name={(g.category ?? "classic") === "trap" ? "alert-triangle" : "trophy"}
+                          size={15}
+                          className="shrink-0 text-[var(--accent)]"
+                        />
+                        <span className="flex-1 min-w-0">
+                          <span className="block font-body text-[14px] truncate">{g.title}</span>
+                          <span className="block font-body text-[11px] text-[var(--text-muted)] truncate">
+                            {(g.category ?? "classic") === "trap" ? "Past" : "Partie"} · {g.topic}
+                          </span>
+                        </span>
+                        <Icon name="chevron-right" size={16} className="shrink-0 text-[var(--text-muted)]" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -783,20 +921,15 @@ export default function Index() {
               </NavPill>
             </div>
 
-            {/* Selektor partie */}
-            <div className="flex flex-wrap justify-center gap-x-1.5 gap-y-1 mb-3">
-              {categoryGames.map((g) => (
-                <NavPill
-                  key={g.id}
-                  size={2}
-                  icon="swords"
-                  active={g.id === gameId}
-                  onClick={() => selectGame(g.id)}
-                >
-                  {g.title}
-                </NavPill>
-              ))}
-            </div>
+            {/* Selektor partie — řádek s vybranou položkou (★, název, téma),
+                šipky ‹ › a rozbalovací seznam; pasti seřazené podle obtížnosti. */}
+            <GamePicker
+              games={categoryGames}
+              activeId={gameId}
+              open={pickerOpen}
+              onToggle={() => setPickerOpen((o) => !o)}
+              onSelect={selectGame}
+            />
 
             {/* Deska */}
             <div className="board-wrap rounded-[10px] bg-[var(--surface)] border-[0.5px] border-[var(--border)] p-2.5 mb-3 shadow-[0_4px_18px_rgba(0,0,0,0.18)]">
@@ -822,15 +955,27 @@ export default function Index() {
 
             {/* Obtížnost + tah */}
             <p className="text-center font-body text-[13px] text-[var(--text-soft)] mb-3">
-              Obtížnost:{" "}
-              <span className="text-[var(--accent)]" aria-label={`obtížnost ${game.difficulty} z 5`}>
-                {"★".repeat(game.difficulty)}
-                <span className="text-[color:var(--text-muted)]/50">
-                  {"★".repeat(5 - game.difficulty)}
-                </span>
-              </span>{" "}
-              · Tah {gameIndex} / {gameMoves.length}
+              Obtížnost: <DifficultyStars level={game.difficulty} size={13} /> · Tah {gameIndex} /{" "}
+              {gameMoves.length}
             </p>
+
+            {/* Odkaz na zahájení, ke kterému partie/past patří — klik přepne do Studovat */}
+            {relatedOpenings.length > 0 && (
+              <div className="flex flex-wrap items-center justify-center gap-1.5 mb-3">
+                <span className="font-body text-[12px] text-[var(--text-muted)]">Zahájení:</span>
+                {relatedOpenings.map((o) => (
+                  <NavPill
+                    key={o.id}
+                    size={3}
+                    icon={OPENING_ICON[o.id] ?? "circle-dot"}
+                    active={false}
+                    onClick={() => openOpening(o.id)}
+                  >
+                    {o.name}
+                  </NavPill>
+                ))}
+              </div>
+            )}
 
             {/* Taby Téma / Tah / Konec */}
             <div className="rounded-[8px] border-[0.5px] border-[var(--border)] bg-[var(--surface)] overflow-hidden">

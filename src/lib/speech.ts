@@ -101,13 +101,16 @@ export function notationToSpeech(text: string): string {
     // 2) Proměna pěšce: e8=D → e8 proměna v dámu
     out = out.replace(/=([JDSV])/g, (m, p: string) => PROMOTION_WORDS[p] ?? m);
 
-    // 3) Tah figurou: Jf3 → jezdec f3, Sxe6 → střelec bere e6
+    // 3) Tah figurou: Jf3 → jezdec f3, Sxe6 → střelec bere e6.
+    //    Rozlišení (Jbd2, V1d2, Jgxe5) se čte „jezdec b d2", „věž 1 d2",
+    //    „jezdec g bere e5" — tak, jak se to říká nahlas.
     out = out.replace(
-      /\b([JSVDK])(x?)([a-h][1-8])\b/g,
-      (m, p: string, take: string, sq: string) => {
+      /\b([JSVDK])([a-h]?[1-8]?)(x?)([a-h][1-8])\b/g,
+      (m, p: string, dis: string, take: string, sq: string) => {
         const word = PIECE_WORDS[p];
         if (!word) return m;
-        return take ? `${word} bere ${sq}` : `${word} ${sq}`;
+        const head = dis ? `${word} ${dis}` : word;
+        return take ? `${head} bere ${sq}` : `${head} ${sq}`;
       },
     );
 

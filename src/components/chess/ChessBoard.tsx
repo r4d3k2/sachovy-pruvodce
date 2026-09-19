@@ -213,6 +213,9 @@ export function ChessBoard({
                 // atribut transform přes transition spolehlivě neinterpoluje.
                 // `px` = uživatelská jednotka SVG, tedy stejná soustava jako viewBox.
                 transform: `translate(${x + C / 2}px, ${y + C / 2}px)`,
+                // Referenční box pro CSS transformace u SVG prvku — bez něj by se
+                // v některých prohlížečích vztahoval k celému viewBoxu.
+                transformBox: "fill-box",
                 transition: "transform 0.32s cubic-bezier(0.4, 0, 0.2, 1)",
                 // Vlastní vrstva jen pro animované figury — obtažený text je
                 // drahý na překreslení (paintOrder="stroke" jede na CPU).
